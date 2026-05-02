@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>דשבורד בית קפה</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:#f0f2f5; color:#1a1a2e; direction:rtl; }
+
+  .topbar {
+    background:linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%);
+    color:#fff; padding:28px 40px; display:flex; align-items:center; gap:18px;
+    box-shadow:0 4px 20px rgba(0,0,0,.35);
+  }
+  .topbar-icon { font-size:2.6rem; }
+  .topbar h1 { font-size:1.8rem; font-weight:700; }
+  .topbar p  { font-size:.95rem; opacity:.75; margin-top:3px; }
+
+  .kpi-row { display:flex; gap:16px; padding:24px 32px 0; flex-wrap:wrap; }
+  .kpi {
+    flex:1; min-width:160px; background:#fff; border-radius:14px;
+    padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,.07);
+    border-top:4px solid var(--c);
+  }
+  .kpi .val { font-size:2rem; font-weight:800; color:var(--c); }
+  .kpi .lbl { font-size:.85rem; color:#666; margin-top:4px; }
+
+  .section { padding:24px 32px; }
+  .section-title {
+    font-size:1.15rem; font-weight:700; margin-bottom:16px;
+    padding-bottom:8px; border-bottom:2px solid #e0e4ef;
+    display:flex; align-items:center; gap:8px;
+  }
+
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+  @media(max-width:900px){ .grid-2,.grid-3{ grid-template-columns:1fr; } }
+
+  .card {
+    background:#fff; border-radius:14px; padding:22px;
+    box-shadow:0 2px 12px rgba(0,0,0,.07);
+  }
+  .card h3 { font-size:1rem; color:#444; margin-bottom:16px; font-weight:600; }
+  .chart-wrap { position:relative; height:260px; }
+  .chart-wrap-tall { position:relative; height:320px; }
+
+  /* peak/quiet pills */
+  .hours-pills { display:flex; flex-wrap:wrap; gap:8px; }
+  .pill {
+    border-radius:20px; padding:6px 14px; font-size:.82rem;
+    font-weight:700; letter-spacing:.3px;
+  }
+  .pill-peak  { background:#fde8e4; color:#C73E1D; border:1px solid #f5b8ae; }
+  .pill-quiet { background:#e0f5f0; color:#1d8068; border:1px solid #9eddd0; }
+  .pill-normal{ background:#e8f0fb; color:#2E86AB; border:1px solid #b0ccec; }
+
+  /* top-3 table */
+  table.data-table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  table.data-table th {
+    background:#f5f7fa; padding:10px 12px; text-align:right;
+    font-weight:700; color:#444; border-bottom:2px solid #e0e4ef;
+  }
+  table.data-table td {
+    padding:9px 12px; border-bottom:1px solid #f0f2f5; vertical-align:middle;
+  }
+  table.data-table tr:hover td { background:#f8f9fd; }
+  table.data-table td:first-child { font-weight:700; color:#2E86AB; }
+
+  /* part-of-day cards */
+  .parts-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  @media(max-width:900px){ .parts-grid{ grid-template-columns:1fr 1fr; } }
+  .part-card {
+    background:#fff; border-radius:14px; padding:20px;
+    box-shadow:0 2px 12px rgba(0,0,0,.07); text-align:center;
+  }
+  .part-icon  { font-size:2rem; margin-bottom:6px; }
+  .part-title { font-size:.82rem; color:#666; margin-bottom:4px; }
+  .part-total { font-size:1.4rem; font-weight:800; color:#1a1a2e; margin-bottom:12px; }
+  .rec-row    { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:.85rem; justify-content:center; }
+  .badge      { border-radius:10px; padding:2px 10px; font-size:.75rem; font-weight:700; white-space:nowrap; }
+  .badge-more { background:#fde8e4; color:#C73E1D; }
+  .badge-mid  { background:#fff3e0; color:#F18F01; }
+  .badge-less { background:#e0f5f0; color:#1d8068; }
+
+  /* heatmap */
+  #heatmapTable { width:100%; border-collapse:collapse; font-size:.78rem; }
+  #heatmapTable th,#heatmapTable td { padding:5px 6px; text-align:center; border:1px solid #e8eaf0; }
+  #heatmapTable th { background:#f5f7fa; font-weight:700; }
+
+  /* accuracy badge */
+  .acc-badge {
+    display:inline-block; background:linear-gradient(135deg,#2E86AB,#0f3460);
+    color:#fff; border-radius:40px; padding:10px 28px;
+    font-size:1.6rem; font-weight:800; margin-bottom:20px;
+  }
+  .acc-sub { font-size:.85rem; opacity:.8; font-weight:400; }
+
+  footer {
+    text-align:center; padding:24px; color:#999; font-size:.8rem;
+    border-top:1px solid #e0e4ef; margin-top:8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-icon">☕</div>
+  <div>
+    <h1>דשבורד ניתוח בית קפה</h1>
+    <p>מרץ 2024 – מרץ 2025 &nbsp;|&nbsp; 3,636 עסקאות &nbsp;|&nbsp; 8 סוגי משקאות</p>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi" style="--c:#2E86AB">
+    <div class="val">3,636</div><div class="lbl">סה"כ עסקאות</div>
+  </div>
+  <div class="kpi" style="--c:#C73E1D">
+    <div class="val">₪115,432</div><div class="lbl">הכנסה כוללת</div>
+  </div>
+  <div class="kpi" style="--c:#F18F01">
+    <div class="val">Americano with Milk</div><div class="lbl">המשקה הנמכר ביותר</div>
+  </div>
+  <div class="kpi" style="--c:#44BBA4">
+    <div class="val">Latte</div><div class="lbl">המשקה בעל הכנסה גבוהה</div>
+  </div>
+  <div class="kpi" style="--c:#A23B72">
+    <div class="val">10:00</div><div class="lbl">שעת שיא (הכי עמוס)</div>
+  </div>
+</div>
+
+<!-- SECTION 1: HOURLY -->
+<div class="section">
+  <div class="section-title">📊 מכירות לפי שעות ביום</div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>מספר הזמנות לכל שעה — אדום=שיא, ירוק=שקט, כחול=רגיל</h3>
+      <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>שעות שיא vs. שקטות</h3>
+      <div style="margin-bottom:16px">
+        <div style="font-weight:700;color:#C73E1D;margin-bottom:8px">🔴 שעות שיא — צריך יותר צוות</div>
+        <div class="hours-pills">
+          <span class="pill pill-peak">9:00</span><span class="pill pill-peak">10:00</span><span class="pill pill-peak">11:00</span><span class="pill pill-peak">12:00</span><span class="pill pill-peak">16:00</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700;color:#1d8068;margin-bottom:8px">🟢 שעות שקטות — צוות מינימלי</div>
+        <div class="hours-pills">
+          <span class="pill pill-quiet">6:00</span><span class="pill pill-quiet">7:00</span><span class="pill pill-quiet">20:00</span><span class="pill pill-quiet">21:00</span><span class="pill pill-quiet">22:00</span>
+        </div>
+      </div>
+      <hr style="margin:18px 0;border:none;border-top:1px solid #f0f2f5">
+      <div style="font-size:.88rem;color:#555;line-height:1.7">
+        <b>שעות שיא:</b> 9–12 בבוקר ו-16:00 אחה"צ<br>
+        <b>ממצא:</b> בוקר אחרי פתיחה הוא העמוס ביותר<br>
+        <b>המלצה:</b> הכן מלאי מלא עד 8:30 בבוקר
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: DRINKS -->
+<div class="section">
+  <div class="section-title">🥤 פופולריות ורווחיות משקאות</div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>מספר הזמנות לפי משקה</h3>
+      <div class="chart-wrap"><canvas id="drinkBarChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>הכנסה כוללת לפי משקה (₪)</h3>
+      <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: HEATMAP drink×hour -->
+<div class="section">
+  <div class="section-title">🌡️ מפת חום — משקה לפי שעה (% מסך ההזמנות בכל שעה)</div>
+  <div class="card">
+    <h3>ככל שהתא כהה יותר — המשקה פופולרי יותר באותה שעה</h3>
+    <div style="overflow-x:auto"><table id="heatmapTable"></table></div>
+  </div>
+</div>
+
+<!-- SECTION 4: TOP-3 PER HOUR -->
+<div class="section">
+  <div class="section-title">⭐ Top-3 משקאות לכל שעה</div>
+  <div class="card">
+    <table class="data-table">
+      <thead>
+        <tr><th>שעה</th><th>🥇 הכי פופולרי</th><th>🥈 שני</th><th>🥉 שלישי</th></tr>
+      </thead>
+      <tbody><tr><td><strong>6:00</strong></td><td>Americano</td><td>Americano with Milk</td><td>Cappuccino</td></tr>
+<tr><td><strong>7:00</strong></td><td>Latte</td><td>Cappuccino</td><td>Americano with Milk</td></tr>
+<tr><td><strong>8:00</strong></td><td>Americano with Milk</td><td>Americano</td><td>Latte</td></tr>
+<tr><td><strong>9:00</strong></td><td>Americano with Milk</td><td>Latte</td><td>Cortado</td></tr>
+<tr><td><strong>10:00</strong></td><td>Americano with Milk</td><td>Latte</td><td>Americano</td></tr>
+<tr><td><strong>11:00</strong></td><td>Americano</td><td>Americano with Milk</td><td>Latte</td></tr>
+<tr><td><strong>12:00</strong></td><td>Americano with Milk</td><td>Americano</td><td>Latte</td></tr>
+<tr><td><strong>13:00</strong></td><td>Americano with Milk</td><td>Americano</td><td>Latte</td></tr>
+<tr><td><strong>14:00</strong></td><td>Latte</td><td>Americano</td><td>Americano with Milk</td></tr>
+<tr><td><strong>15:00</strong></td><td>Latte</td><td>Americano</td><td>Americano with Milk</td></tr>
+<tr><td><strong>16:00</strong></td><td>Latte</td><td>Americano</td><td>Cappuccino</td></tr>
+<tr><td><strong>17:00</strong></td><td>Americano with Milk</td><td>Latte</td><td>Cappuccino</td></tr>
+<tr><td><strong>18:00</strong></td><td>Latte</td><td>Americano with Milk</td><td>Cappuccino</td></tr>
+<tr><td><strong>19:00</strong></td><td>Latte</td><td>Cappuccino</td><td>Americano with Milk</td></tr>
+<tr><td><strong>20:00</strong></td><td>Latte</td><td>Cappuccino</td><td>Cocoa</td></tr>
+<tr><td><strong>21:00</strong></td><td>Americano with Milk</td><td>Latte</td><td>Hot Chocolate</td></tr>
+<tr><td><strong>22:00</strong></td><td>Americano with Milk</td><td>Latte</td><td>Hot Chocolate</td></tr>
+</tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SECTION 5: PART-OF-DAY -->
+<div class="section">
+  <div class="section-title">🕐 המלצות מלאי לפי חלק היום</div>
+  <div class="parts-grid">
+    <div class="part-card" style="border-top:4px solid #2E86AB">
+      <div class="part-icon">☀️</div>
+      <div class="part-title">Morning (6-11)</div>
+      <div class="part-total">1,221 הזמנות</div>
+      <div class="rec-row"><span class="badge badge-more">הרבה</span> Americano with Milk</div>
+      <div class="rec-row"><span class="badge badge-mid">בינוני</span> Latte</div>
+      <div class="rec-row"><span class="badge badge-less">מעט</span> Espresso</div>
+    </div>
+    <div class="part-card" style="border-top:4px solid #F18F01">
+      <div class="part-icon">🍽️</div>
+      <div class="part-title">Lunch (12-14)</div>
+      <div class="part-total">704 הזמנות</div>
+      <div class="rec-row"><span class="badge badge-more">הרבה</span> Americano with Milk</div>
+      <div class="rec-row"><span class="badge badge-mid">בינוני</span> Americano</div>
+      <div class="rec-row"><span class="badge badge-less">מעט</span> Hot Chocolate</div>
+    </div>
+    <div class="part-card" style="border-top:4px solid #A23B72">
+      <div class="part-icon">🌤️</div>
+      <div class="part-title">Afternoon (15-17)</div>
+      <div class="part-total">772 הזמנות</div>
+      <div class="rec-row"><span class="badge badge-more">הרבה</span> Latte</div>
+      <div class="rec-row"><span class="badge badge-mid">בינוני</span> Americano with Milk</div>
+      <div class="rec-row"><span class="badge badge-less">מעט</span> Espresso</div>
+    </div>
+    <div class="part-card" style="border-top:4px solid #44BBA4">
+      <div class="part-icon">🌙</div>
+      <div class="part-title">Evening (18-22)</div>
+      <div class="part-total">939 הזמנות</div>
+      <div class="rec-row"><span class="badge badge-more">הרבה</span> Latte</div>
+      <div class="rec-row"><span class="badge badge-mid">בינוני</span> Americano with Milk</div>
+      <div class="rec-row"><span class="badge badge-less">מעט</span> Espresso</div>
+    </div></div>
+</div>
+
+<!-- SECTION 6: MODEL -->
+<div class="section">
+  <div class="section-title">🤖 מודל CatBoost — חיזוי בחירת משקה</div>
+  <div class="grid-2">
+    <div class="card" style="text-align:center">
+      <h3>דיוק המודל</h3>
+      <div class="acc-badge">57.1% <span class="acc-sub">Accuracy</span></div>
+      <div style="font-size:.88rem;color:#555;line-height:1.8;text-align:right">
+        <table class="data-table">
+          <thead><tr><th>משקה</th><th>Precision</th><th>Recall</th><th>F1</th><th>תמיכה</th></tr></thead>
+          <tbody><tr>
+      <td>Americano</td>
+      <td>70%</td>
+      <td>78%</td>
+      <td>74%</td>
+      <td>116</td>
+    </tr><tr>
+      <td>Americano with Milk</td>
+      <td>79%</td>
+      <td>86%</td>
+      <td>82%</td>
+      <td>165</td>
+    </tr><tr>
+      <td>Cappuccino</td>
+      <td>35%</td>
+      <td>26%</td>
+      <td>30%</td>
+      <td>100</td>
+    </tr><tr>
+      <td>Cocoa</td>
+      <td>22%</td>
+      <td>8%</td>
+      <td>12%</td>
+      <td>49</td>
+    </tr><tr>
+      <td>Cortado</td>
+      <td>58%</td>
+      <td>24%</td>
+      <td>34%</td>
+      <td>58</td>
+    </tr><tr>
+      <td>Espresso</td>
+      <td>89%</td>
+      <td>89%</td>
+      <td>89%</td>
+      <td>27</td>
+    </tr><tr>
+      <td>Hot Chocolate</td>
+      <td>35%</td>
+      <td>14%</td>
+      <td>20%</td>
+      <td>56</td>
+    </tr><tr>
+      <td>Latte</td>
+      <td>42%</td>
+      <td>68%</td>
+      <td>52%</td>
+      <td>157</td>
+    </tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>חשיבות פיצ'רים — מה מנבא את בחירת המשקה?</h3>
+      <div class="chart-wrap"><canvas id="fiChart"></canvas></div>
+    </div>
+  </div>
+  <div style="margin-top:20px">
+    <div class="card">
+      <h3>Confusion Matrix — אילו משקאות המודל מבלבל? (% מכל שורה)</h3>
+      <div style="overflow-x:auto"><table id="cmTable" class="data-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<footer>נוצר באמצעות Python · CatBoost · Chart.js</footer>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────
+const hours      = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+const hourlyCnt  = [5, 91, 235, 247, 349, 294, 249, 227, 228, 245, 283, 244, 220, 235, 171, 197, 116];
+const hourlyClr  = ["#44BBA4", "#44BBA4", "#2E86AB", "#C73E1D", "#C73E1D", "#C73E1D", "#C73E1D", "#2E86AB", "#2E86AB", "#2E86AB", "#C73E1D", "#2E86AB", "#2E86AB", "#2E86AB", "#44BBA4", "#44BBA4", "#44BBA4"];
+const drinks     = ["Americano with Milk", "Latte", "Americano", "Cappuccino", "Cortado", "Hot Chocolate", "Cocoa", "Espresso"];
+const drinkCnt   = [824, 782, 578, 501, 292, 282, 243, 134];
+const revLabels  = ["Latte", "Americano with Milk", "Cappuccino", "Americano", "Hot Chocolate", "Cocoa", "Cortado", "Espresso"];
+const revVals    = [27866.3, 25269.12, 18034.14, 15062.26, 10172.46, 8678.16, 7534.86, 2814.2799999999997];
+const fiLabels   = ["money", "hour", "day_of_week", "is_weekend", "is_afternoon", "is_lunch", "is_morning", "cash_type", "is_evening"];
+const fiVals     = [74.14, 9.6, 8.04, 2.39, 1.43, 1.39, 1.08, 1.08, 0.86];
+const cmLabels   = ["Americano", "Americano with Milk", "Cappuccino", "Cocoa", "Cortado", "Espresso", "Hot Chocolate", "Latte"];
+const cmData     = [[78, 12, 0, 0, 7, 1, 0, 0], [1, 86, 1, 0, 0, 0, 1, 9], [0, 2, 26, 3, 0, 0, 3, 66], [0, 0, 26, 8, 0, 0, 4, 61], [60, 13, 0, 0, 24, 1, 0, 0], [7, 0, 0, 0, 3, 88, 0, 0], [0, 1, 16, 8, 0, 0, 14, 58], [0, 8, 14, 3, 0, 0, 5, 68]];
+const hdHours    = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+const hdDrinks   = ["Americano", "Americano with Milk", "Cappuccino", "Cocoa", "Cortado", "Espresso", "Hot Chocolate", "Latte"];
+const hdMatrix   = [[40.0, 40.0, 20.0, 0.0, 0.0, 0.0, 0.0, 0.0], [15.4, 20.9, 22.0, 4.4, 2.2, 2.2, 0.0, 33.0], [20.4, 21.7, 9.4, 6.4, 17.4, 2.6, 2.1, 20.0], [11.3, 38.5, 9.3, 6.5, 13.4, 4.0, 2.8, 14.2], [17.2, 29.2, 8.6, 2.3, 9.7, 3.7, 6.0, 23.2], [24.8, 22.8, 10.2, 5.4, 11.9, 5.1, 5.8, 13.9], [22.5, 22.9, 11.6, 5.6, 8.8, 6.0, 3.6, 18.9], [20.3, 24.7, 14.1, 4.8, 10.6, 3.1, 4.4, 18.1], [19.7, 19.3, 15.8, 7.5, 7.0, 4.4, 5.7, 20.6], [19.6, 19.6, 13.1, 3.3, 4.9, 5.3, 7.8, 26.5], [15.5, 13.8, 14.1, 9.5, 6.0, 4.6, 11.0, 25.4], [14.8, 21.3, 15.2, 7.4, 4.9, 4.1, 11.5, 20.9], [13.2, 19.1, 19.1, 8.6, 4.5, 3.6, 11.4, 20.5], [5.1, 20.0, 22.1, 8.1, 4.3, 1.7, 13.2, 25.5], [7.6, 14.0, 20.5, 16.4, 4.7, 2.3, 10.5, 24.0], [5.1, 27.4, 11.2, 8.1, 5.6, 1.0, 14.2, 27.4], [12.1, 21.6, 15.5, 6.0, 4.3, 1.7, 17.2, 21.6]];
+
+const PALETTE = ['#2E86AB','#A23B72','#F18F01','#C73E1D','#3B1F2B',
+                 '#44BBA4','#E94F37','#F5A623'];
+
+// ─── Hourly bar ──────────────────────────────────────────
+new Chart(document.getElementById('hourlyChart'), {
+  type:'bar',
+  data:{ labels:hours.map(h=>h+':00'), datasets:[{
+    data:hourlyCnt, backgroundColor:hourlyClr,
+    borderRadius:6, borderSkipped:false
+  }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{ y:{beginAtZero:true}, x:{grid:{display:false}} },
+    responsive:true, maintainAspectRatio:false }
+});
+
+// ─── Drink bar ──────────────────────────────────────────
+new Chart(document.getElementById('drinkBarChart'), {
+  type:'bar',
+  data:{ labels:drinks, datasets:[{ data:drinkCnt,
+    backgroundColor:PALETTE, borderRadius:6, borderSkipped:false }]},
+  options:{ indexAxis:'y', plugins:{legend:{display:false}},
+    scales:{ x:{beginAtZero:true}, y:{grid:{display:false}} },
+    responsive:true, maintainAspectRatio:false }
+});
+
+// ─── Revenue doughnut ────────────────────────────────────
+new Chart(document.getElementById('revenueChart'), {
+  type:'doughnut',
+  data:{ labels:revLabels, datasets:[{
+    data:revVals, backgroundColor:PALETTE,
+    borderWidth:2, borderColor:'#fff'
+  }]},
+  options:{ plugins:{ legend:{ position:'right', labels:{ font:{size:11} } } },
+    responsive:true, maintainAspectRatio:false }
+});
+
+// ─── Feature Importance bar ──────────────────────────────
+new Chart(document.getElementById('fiChart'), {
+  type:'bar',
+  data:{ labels:fiLabels, datasets:[{ data:fiVals,
+    backgroundColor: fiVals.map((_,i)=>i===0?'#C73E1D':i===1?'#F18F01':'#2E86AB'),
+    borderRadius:6, borderSkipped:false }]},
+  options:{ indexAxis:'y', plugins:{legend:{display:false}},
+    scales:{ x:{beginAtZero:true}, y:{grid:{display:false}} },
+    responsive:true, maintainAspectRatio:false }
+});
+
+// ─── Heatmap table ────────────────────────────────────────
+(function(){
+  const tbl = document.getElementById('heatmapTable');
+  // header: drinks
+  let hdr = '<thead><tr><th>שעה</th>';
+  hdDrinks.forEach(d=>{ hdr+=`<th>${d}</th>`; });
+  hdr += '</tr></thead>';
+  // body
+  let body = '<tbody>';
+  hdHours.forEach((h,ri)=>{
+    body += `<tr><td><b>${h}:00</b></td>`;
+    hdMatrix[ri].forEach(v=>{
+      const intensity = Math.round((v/100)*220);
+      const bg = `rgb(${255-Math.round(intensity*0.4)},${255-Math.round(intensity*0.15)},${255-intensity})`;
+      const fg = v>55?'#fff':'#333';
+      body += `<td style="background:${bg};color:${fg};font-weight:${v>40?700:400}">${v>0?v.toFixed(0)+'%':''}</td>`;
+    });
+    body += '</tr>';
+  });
+  body += '</tbody>';
+  tbl.innerHTML = hdr+body;
+})();
+
+// ─── Confusion Matrix table ───────────────────────────────
+(function(){
+  const tbl = document.getElementById('cmTable');
+  let hdr = '<thead><tr><th>בפועל \ חיזוי</th>';
+  cmLabels.forEach(l=>{ hdr+=`<th>${l}</th>`; });
+  hdr += '</tr></thead>';
+  let body = '<tbody>';
+  cmData.forEach((row,ri)=>{
+    body += `<tr><td><b>${cmLabels[ri]}</b></td>`;
+    row.forEach((v,ci)=>{
+      const isMain = ri===ci;
+      const bg = isMain
+        ? `rgba(46,134,171,${0.2+v/100*0.7})`
+        : v>20?`rgba(199,62,29,${v/100*0.5})`:'transparent';
+      const fw = isMain?700:400;
+      body += `<td style="background:${bg};font-weight:${fw}">${v>0?v+'%':''}</td>`;
+    });
+    body += '</tr>';
+  });
+  body += '</tbody>';
+  tbl.innerHTML = hdr+body;
+})();
+</script>
+</body>
+</html>
